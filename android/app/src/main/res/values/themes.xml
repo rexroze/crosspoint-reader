@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base app theme — transparent/windowBackground-only so Compose owns all rendering -->
+    <style name="Theme.CrossPointReader" parent="android:Theme.Material.NoTitleBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- Splash screen theme applied to MainActivity before Compose is ready -->
+    <style name="Theme.CrossPointReader.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FAFAFA</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.CrossPointReader</item>
+    </style>
+</resources>
