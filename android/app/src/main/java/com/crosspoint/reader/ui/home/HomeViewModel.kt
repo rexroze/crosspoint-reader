@@ -1,0 +1,68 @@
+package com.crosspoint.reader.ui.home
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.crosspoint.reader.CrossPointApp
+import com.crosspoint.reader.domain.Book
+import com.crosspoint.reader.domain.BookRepository
+import com.crosspoint.reader.ui.reader.ReaderActivity
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import org.readium.r2.streamer.parser.asset.FileAsset
+import java.io.File
+import javax.inject.Inject
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val bookRepository: BookRepository
+) : ViewModel() {
+
+    val recentBooks: StateFlow<List<Book>> = bookRepository.observeRecent(12)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun openBook(context: Context, book: Book) {
+        val intent = Intent(context, ReaderActivity::class.java).apply {
+            putExtra(ReaderActivity.EXTRA_BOOK_ID, book.id)
+            putExtra(ReaderActivity.EXTRA_BOOK_PATH, book.path)
+            book.currentLocator?.let { putExtra(ReaderActivity.EXTRA_LOCATOR_JSON, it) }
+        }
+        context.startActivity(intent)
+    }
+
+    fun openUri(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            val file = copyUriToFiles(context, uri) ?: return@launch
+            importFile(context, file)
+        }
+    }
+
+    private suspend fun importFile(context: Context, file: File) {
+        val app = context.applicationContext as CrossPointApp
+        val publication = app.streamer
+            .open(FileAsset(file), allowUserInteraction = false)
+            .getOrNull() ?: return
+
+        val title = publication.metadata.title ?: file.nameWithoutExtension
+        val author = publication.metadata.authors.firstOrNull()?.name ?: ""
+        publication.close()
+
+        val book = bookRepository.addOrGet(
+            Book(path = file.absolutePath, title = title, author = author)
+        )
+        openBook(context, book)
+    }
+
+    private fun copyUriToFiles(context: Context, uri: Uri): File? = runCatching {
+        val dest = File(context.filesDir, "import_${System.currentTimeMillis()}.epub")
+        context.contentResolver.openInputStream(uri)?.use { it.copyTo(dest.outputStream()) }
+        dest
+    }.getOrNull()
+}

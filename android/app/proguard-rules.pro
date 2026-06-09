@@ -1,0 +1,4 @@
+-keep class org.readium.** { *; }
+-keep class com.crosspoint.reader.data.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
